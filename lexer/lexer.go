@@ -7,7 +7,11 @@ import (
 	"strings"
 )
 
-type Lexer struct {
+type Lexer interface {
+	NextToken() token.Token
+}
+
+type lexer struct {
 	src      io.RuneReader
 	ch       rune
 	pos      token.Pos
@@ -15,8 +19,8 @@ type Lexer struct {
 	matchers []matcher.TokenMatcher
 }
 
-func NewLexer(src io.RuneReader) *Lexer {
-	l := &Lexer{src: src}
+func NewLexer(src io.RuneReader) Lexer {
+	l := &lexer{src: src}
 	l.matchers = []matcher.TokenMatcher{
 		matcher.NewSingleCharMatcher(),
 		matcher.NewStringMatcher(),
@@ -26,7 +30,7 @@ func NewLexer(src io.RuneReader) *Lexer {
 	return l
 }
 
-func (l *Lexer) NextToken() token.Token {
+func (l *lexer) NextToken() token.Token {
 	for _, m := range l.matchers {
 		if ok, tok := m.Match(l); ok {
 			return tok
@@ -38,22 +42,22 @@ func (l *Lexer) NextToken() token.Token {
 	return tok
 }
 
-func (l *Lexer) CurrentChar() rune {
+func (l *lexer) CurrentChar() rune {
 	return l.ch
 }
 
-func (l *Lexer) ReadChar() {
+func (l *lexer) ReadChar() {
 	var size int
 	l.ch, size, _ = l.src.ReadRune()
 	l.pos = l.readPos
 	l.readPos = l.pos + token.Pos(size)
 }
 
-func (l *Lexer) Pos() token.Pos {
+func (l *lexer) Pos() token.Pos {
 	return l.pos
 }
 
-func (l *Lexer) ReadIdentifier() string {
+func (l *lexer) ReadIdentifier() string {
 	var ident strings.Builder
 	for l.IsLetter(l.ch) {
 		ident.WriteRune(l.ch)
@@ -62,7 +66,7 @@ func (l *Lexer) ReadIdentifier() string {
 	return ident.String()
 }
 
-func (l *Lexer) ReadString() string {
+func (l *lexer) ReadString() string {
 	var str strings.Builder
 	l.ReadChar()
 	for l.ch != '"' && l.ch != 0 {
@@ -72,6 +76,6 @@ func (l *Lexer) ReadString() string {
 	return str.String()
 }
 
-func (l *Lexer) IsLetter(ch rune) bool {
+func (l *lexer) IsLetter(ch rune) bool {
 	return 'a' <= ch && ch <= 'z' || 'A' <= ch && ch <= 'Z' || ch == '_'
 }
